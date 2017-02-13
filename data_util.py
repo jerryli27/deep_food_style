@@ -85,9 +85,9 @@ def load_examples(config):
             raise Exception("scale size cannot be less than crop size")
         return r
 
-    # with tf.name_scope("input_images"):
-    #     images = transform(images)
-    # TODO: change this back
+    with tf.name_scope("input_images"):
+        images = transform(images)
+    images= tf.image.resize_images(images, [config.crop_size, config.crop_size], method=tf.image.ResizeMethod.AREA)
 
     paths, images, labels = tf.train.batch([path_queue, images, label_queue], batch_size=config.batch_size)
     steps_per_epoch = int(math.ceil(len(input_paths) / config.batch_size))
@@ -155,7 +155,8 @@ def save_results(fetches, image_dir, unique_labels, step=None):
                 f.write(contents)
         for kind in ["labels", "outputs"]:
             contents = fetches[kind][i]
-            labels = one_hot_vector_to_labels(contents, unique_labels)
+            # labels = one_hot_vector_to_labels(contents, unique_labels)
+            labels = contents
             fileset[kind] = labels
         filesets.append(fileset)
     return filesets
@@ -177,10 +178,10 @@ def append_index(filesets, config, step=False):
             index.write("<td>%d</td>" % fileset["step"])
         index.write("<td>%s</td>" % fileset["name"])
 
-        for kind in ["inputs"]:
-            index.write("<td><img src=\"images/%s\"></td>" % urllib.quote(fileset[kind]))
+        # for kind in ["inputs"]:
+        #     index.write("<td><img src=\"images/%s\"></td>" % urllib.quote(fileset[kind]))
         for kind in ["outputs","labels"]:
-            index.write("<td>%s</td>" % fileset[kind])
+            index.write("<td>%s</td>" % str(fileset[kind]))
 
         index.write("</tr>")
     return index_path
