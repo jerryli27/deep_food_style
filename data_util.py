@@ -155,8 +155,7 @@ def save_results(fetches, image_dir, unique_labels, step=None):
                 f.write(contents)
         for kind in ["labels", "outputs"]:
             contents = fetches[kind][i]
-            # labels = one_hot_vector_to_labels(contents, unique_labels)
-            labels = contents
+            labels = one_hot_vector_to_labels(contents, unique_labels)
             fileset[kind] = labels
         filesets.append(fileset)
     return filesets
@@ -178,8 +177,8 @@ def append_index(filesets, config, step=False):
             index.write("<td>%d</td>" % fileset["step"])
         index.write("<td>%s</td>" % fileset["name"])
 
-        # for kind in ["inputs"]:
-        #     index.write("<td><img src=\"images/%s\"></td>" % urllib.quote(fileset[kind]))
+        for kind in ["inputs"]:
+            index.write("<td><img src=\"images/%s\"></td>" % urllib.quote(fileset[kind]))
         for kind in ["outputs","labels"]:
             index.write("<td>%s</td>" % str(fileset[kind]))
 
