@@ -85,8 +85,9 @@ def load_examples(config):
             raise Exception("scale size cannot be less than crop size")
         return r
 
-    with tf.name_scope("input_images"):
-        images = transform(images)
+    # with tf.name_scope("input_images"):
+    #     images = transform(images)
+    # TODO: change this back
 
     paths, images, labels = tf.train.batch([path_queue, images, label_queue], batch_size=config.batch_size)
     steps_per_epoch = int(math.ceil(len(input_paths) / config.batch_size))
@@ -127,7 +128,6 @@ def labels_to_one_hot_vector(labels):
 
 def one_hot_vector_to_labels(ohv, unique_labels):
     if ohv.ndim == 1:
-
         label_indices = np.argmax(ohv)
         labels = unique_labels[label_indices]
         return labels
@@ -135,6 +135,8 @@ def one_hot_vector_to_labels(ohv, unique_labels):
         label_indices = np.argmax(ohv, axis=1)
         labels = [unique_labels[i] for i in label_indices]
         return labels
+    else:
+        raise AssertionError("one hot vector must have 1 or 2 dimensions. Current shape is %s" %str(ohv.shape))
 
 
 def save_results(fetches, image_dir, unique_labels, step=None):
@@ -177,7 +179,7 @@ def append_index(filesets, config, step=False):
 
         for kind in ["inputs"]:
             index.write("<td><img src=\"images/%s\"></td>" % urllib.quote(fileset[kind]))
-        for kind in ["labels", "outputs"]:
+        for kind in ["outputs","labels"]:
             index.write("<td>%s</td>" % fileset[kind])
 
         index.write("</tr>")

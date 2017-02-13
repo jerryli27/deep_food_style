@@ -185,7 +185,8 @@ class Vgg19:
 def create_model(inputs, targets, config):
     def create_classifier(inputs, targets):
         vgg = Vgg19()
-        train_mode = tf.constant(config.mode=='train',dtype=tf.bool, name='train_mode')
+        # train_mode = tf.constant(config.mode=='train',dtype=tf.bool, name='train_mode') # TODO: modify this back.
+        train_mode = tf.constant(False,dtype=tf.bool, name='train_mode')
         output_classes = targets.get_shape().as_list()[1]
         vgg.build(inputs, output_classes, train_mode)
         vgg_19_net = vgg.fc8

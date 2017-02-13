@@ -201,7 +201,7 @@ def main():
                 if should(a.display_freq):
                     print("saving display images")
                     filesets =  data_util.save_results(results["display"], image_dir, examples.unique_labels, step=results["global_step"])
-                    data_util.append_index(filesets, step=True)
+                    data_util.append_index(filesets, a, step=True)
 
                 if should(a.trace_freq):
                     print("recording trace")
@@ -225,6 +225,6 @@ if __name__ == '__main__':
 
 """
 python train_vgg19.py --mode train --output_dir sanity_check_train --max_epochs 200 --input_dir /home/xor/datasets/UECFOOD100 --display_freq=5000
-python train_vgg19.py --mode train --output_dir sanity_check_train --max_epochs 200 --input_dir /mnt/tf_drive/home/ubuntu/datasets/UECFOOD256_sanity_check/ --display_freq=5000
+python train_vgg19.py --mode train --output_dir sanity_check_train --max_epochs 20 --input_dir /mnt/tf_drive/home/ubuntu/datasets/UECFOOD256_sanity_check/ --display_freq=5000
 python train_vgg19.py --mode test --output_dir sanity_check_test --input_dir /mnt/tf_drive/home/ubuntu/datasets/UECFOOD256_sanity_check/ --checkpoint sanity_check_train
 """
