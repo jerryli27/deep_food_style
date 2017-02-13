@@ -98,27 +98,28 @@ class Vgg19:
         self.conv5_3 = conv_util.conv_layer(self.conv5_2, 512, 3, 1, name="conv5_3")
         self.conv5_4 = conv_util.conv_layer(self.conv5_3, 512, 4, 2, name="conv5_4")
         #
-        # self.fc6 = self.fc_layer(self.pool5, ((hw / (2 ** 5)) ** 2) * 512, 4096, "fc6")  # 25088 = ((224 / (2 ** 5)) ** 2) * 512
-        self.fc6 = self.fc_layer(self.conv5_4, ((hw / (2 ** 5)) ** 2) * 512, 4096, "fc6")  # 25088 = ((224 / (2 ** 5)) ** 2) * 512
-        self.relu6 = tf.nn.relu(self.fc6)
-        if train_mode is not None:
-            self.relu6 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu6, 0.5), lambda: self.relu6)
-        elif self.trainable:
-            self.relu6 = tf.nn.dropout(self.relu6, 0.5)
+        if output_classes is not None:
+            # self.fc6 = self.fc_layer(self.pool5, ((hw / (2 ** 5)) ** 2) * 512, 4096, "fc6")  # 25088 = ((224 / (2 ** 5)) ** 2) * 512
+            self.fc6 = self.fc_layer(self.conv5_4, ((hw / (2 ** 5)) ** 2) * 512, 4096, "fc6")  # 25088 = ((224 / (2 ** 5)) ** 2) * 512
+            self.relu6 = tf.nn.relu(self.fc6)
+            if train_mode is not None:
+                self.relu6 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu6, 0.5), lambda: self.relu6)
+            elif self.trainable:
+                self.relu6 = tf.nn.dropout(self.relu6, 0.5)
 
-        self.fc7 = self.fc_layer(self.relu6, 4096, 4096, "fc7")
-        self.relu7 = tf.nn.relu(self.fc7)
-        if train_mode is not None:
-            self.relu7 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu7, 0.5), lambda: self.relu7)
-        elif self.trainable:
-            self.relu7 = tf.nn.dropout(self.relu7, 0.5)
+            self.fc7 = self.fc_layer(self.relu6, 4096, 4096, "fc7")
+            self.relu7 = tf.nn.relu(self.fc7)
+            if train_mode is not None:
+                self.relu7 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu7, 0.5), lambda: self.relu7)
+            elif self.trainable:
+                self.relu7 = tf.nn.dropout(self.relu7, 0.5)
 
-        self.fc8 = self.fc_layer(self.relu7, 4096, output_classes, "fc8")
+            self.fc8 = self.fc_layer(self.relu7, 4096, output_classes, "fc8")
 
-        #
-        # self.fc8 = self.fc_layer(self.conv3_4, (hw / (2**3)) ** 2 * 256, output_classes, "fc8")
+            #
+            # self.fc8 = self.fc_layer(self.conv3_4, (hw / (2**3)) ** 2 * 256, output_classes, "fc8")
 
-        self.prob = tf.nn.softmax(self.fc8, name="prob")
+            self.prob = tf.nn.softmax(self.fc8, name="prob")
 
         self.data_dict = None
 
@@ -203,6 +204,25 @@ class Vgg19:
         for v in self.var_dict.values():
             count += reduce(lambda x, y: x * y, v.get_shape().as_list())
         return count
+    def net(self):
+        return {
+            "conv1_1": self.conv1_1,
+            "conv1_2": self.conv1_2,
+            "conv2_1": self.conv2_1,
+            "conv2_2": self.conv2_2,
+            "conv3_1": self.conv3_1,
+            "conv3_2": self.conv3_2,
+            "conv3_3": self.conv3_3,
+            "conv3_4": self.conv3_4,
+            "conv4_1": self.conv4_1,
+            "conv4_2": self.conv4_2,
+            "conv4_3": self.conv4_3,
+            "conv4_4": self.conv4_4,
+            "conv5_1": self.conv5_1,
+            "conv5_2": self.conv5_2,
+            "conv5_3": self.conv5_3,
+            "conv5_4": self.conv5_4,
+        }
 
 
 
