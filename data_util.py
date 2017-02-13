@@ -126,9 +126,15 @@ def labels_to_one_hot_vector(labels):
 
 
 def one_hot_vector_to_labels(ohv, unique_labels):
-    label_indices = np.argmax(ohv, axis=1)
-    labels = [unique_labels[i] for i in label_indices]
-    return labels
+    if ohv.ndim == 1:
+
+        label_indices = np.argmax(ohv)
+        labels = unique_labels[label_indices]
+        return labels
+    elif ohv.ndim == 2:
+        label_indices = np.argmax(ohv, axis=1)
+        labels = [unique_labels[i] for i in label_indices]
+        return labels
 
 
 def save_results(fetches, image_dir, unique_labels, step=None):

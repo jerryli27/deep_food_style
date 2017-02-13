@@ -222,3 +222,9 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+"""
+python train_vgg19.py --mode train --output_dir sanity_check_train --max_epochs 200 --input_dir /home/xor/datasets/UECFOOD100 --display_freq=5000
+python train_vgg19.py --mode train --output_dir sanity_check_train --max_epochs 200 --input_dir /mnt/tf_drive/home/ubuntu/datasets/UECFOOD256_sanity_check/ --display_freq=5000
+python train_vgg19.py --mode test --output_dir sanity_check_test --input_dir /mnt/tf_drive/home/ubuntu/datasets/UECFOOD256_sanity_check/ --checkpoint sanity_check_train
+"""
