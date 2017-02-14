@@ -5,7 +5,6 @@
 import tensorflow as tf
 from typing import Tuple, Dict
 
-import vgg
 from general_util import *
 from neural_util import gramian
 
@@ -111,91 +110,3 @@ def gramian_with_mask(layer, masks):
     assert number_colors == len(mask_list)
 
     return grams
-
-
-def construct_masks_and_features(style_semantic_masks, styles, style_features, batch_size, height, width, semantic_masks_num_layers, style_layer_names, net_layer_sizes, semantic_masks_weight, vgg_data, mean_pixel, mask_resize_as_feature, use_mrf, average_pool = False):
-    # type: (List[np.ndarray], List[np.ndarray], List[Dict[str,np.ndarray]], int, int, int, int, List[str], Dict[str,Union[List[int],Tuple[int]]], float, Dict[str,np.ndarray], Union[List[float],Tuple[float]], bool, bool, bool) -> Tuple[Dict[str,np.ndarray],List[Dict[str,np.ndarray]],tf.Tensor,List[tf.Tensor]]
-    """
-    This is a wrapper for computing the features for the style image as well as constructing the placeholders for
-    the semantic masks.
-    :param mask_resize_as_feature: If true, resize the mask and use the resized mask as additional feature besides the
-    vgg network layers. If false, pass the masks (must have exactly 3 masks) into the vgg network and use the outputted
-    layers as additional features. The merits of setting this to True is: it supports using more than 3 masks; it's
-    meaning is more understandable than passing a mask through an image recognition network. The merits of setting it
-    to False is: The mean/std for each layer would be the same as any other vgg layers, so it would be better for mrf
-    loss (otherwise, if we use resize it would be treating the masks with different level of importance when doing nn
-    matching since each vgg layer has different magnetudes but the mask layers all have the same magnetude across all
-    layers.)
-    TODO: This might be too complicated for a single function...
-    """
-    output_semantic_mask_features = {}
-
-    output_semantic_mask_placeholder = tf.placeholder(tf.float32, [batch_size, height, width,
-                                                        semantic_masks_num_layers],
-                                           name='output_semantic_mask_placeholder')
-    if mask_resize_as_feature:
-        if average_pool:
-            # According to http://dmitryulyanov.github.io/feed-forward-neural-doodle/,
-            # resizing might not be sufficient. "Use 3x3 mean filter for mask when the data goes through
-            # convolutions and average pooling along with pooling layers."
-            output_semantic_masks_for_each_layer = masks_average_pool(output_semantic_mask_placeholder)
-        for layer in style_layer_names:
-            if average_pool:
-                output_semantic_mask_feature = output_semantic_masks_for_each_layer[layer]
-            else:
-                output_semantic_mask_feature = tf.image.resize_images(output_semantic_mask_placeholder, (
-                    net_layer_sizes[layer][1], net_layer_sizes[layer][2]))
-
-            output_semantic_mask_shape = map(lambda i: i.value, output_semantic_mask_feature.get_shape())
-            if (net_layer_sizes[layer][1] != output_semantic_mask_shape[1]) or (
-                net_layer_sizes[layer][1] != output_semantic_mask_shape[1]):
-                raise AssertionError("Semantic masks shape not equal. Net layer %s size is: %s, "
-                                     "semantic mask size is: %s" % (layer, str(net_layer_sizes[layer]),
-                                                                    str(output_semantic_mask_shape)))
-
-            # Must be normalized (/ 255), otherwise the style loss just gets out of control.
-            output_semantic_mask_features[layer] = output_semantic_mask_feature * semantic_masks_weight / 255.0
-    else:
-        if semantic_masks_num_layers != 3:
-            raise AssertionError('The semantic_masks_num_layers must be 3 (RGB) if mask_resize_as_feature is turned '
-                                 'off. Otherwise it is not possible to treat it as an image and pass it through the '
-                                 'vgg network.')
-        content_semantic_mask_pre = vgg.preprocess(output_semantic_mask_placeholder, mean_pixel)
-        semantic_mask_net, _ = vgg.pre_read_net(vgg_data, content_semantic_mask_pre)
-        for layer in style_layer_names:
-            output_semantic_mask_feature = semantic_mask_net[layer] * semantic_masks_weight
-            output_semantic_mask_features[layer] = output_semantic_mask_feature
-
-    style_semantic_masks_pres = []
-    style_semantic_masks_placeholders = []
-    style_semantic_masks_for_each_layer = []
-    for i in range(len(styles)):
-        current_style_shape = styles[i].shape  # Shape has format : height width rgb
-        style_semantic_masks_placeholders.append(
-            tf.placeholder('float',
-                           shape=(1, current_style_shape[0], current_style_shape[1], semantic_masks_num_layers),
-                           name='style_mask_%d' % i))
-
-        if not mask_resize_as_feature:
-            style_semantic_masks_pres.append(
-                np.array([vgg.preprocess(style_semantic_masks[i], mean_pixel)]))
-            semantic_mask_net, _ = vgg.pre_read_net(vgg_data, style_semantic_masks_pres[-1])
-        else:
-            style_semantic_masks_for_each_layer.append(
-                masks_average_pool(style_semantic_masks_placeholders[-1]))
-
-        for layer in style_layer_names:
-            if mask_resize_as_feature:
-                features = tf.div(style_semantic_masks_for_each_layer[-1][layer], 255.0)
-            else:
-                features = semantic_mask_net[layer]
-            features = tf.mul(features, semantic_masks_weight)
-            if use_mrf:
-                # TODO: maybe I should change the magnetude of the mask layers as i'm concatenating it with the vgg feature layers so that they're on the same magnitude.
-                # I tried that but didn't find the setting that make it work yet.
-                style_features[i][layer] = concatenate_mask_layer_tf(features, style_features[i][layer])
-            else:
-                gram = gramian_with_mask(style_features[i][layer], features)
-                style_features[i][layer] = gram
-
-    return output_semantic_mask_features, style_features, output_semantic_mask_placeholder, style_semantic_masks_placeholders

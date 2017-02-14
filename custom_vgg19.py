@@ -1,3 +1,8 @@
+"""
+This file contains an implementation of the vgg 19 network. It is adapted from
+https://github.com/machrisaa/tensorflow-vgg/blob/master/vgg19_trainable.py
+"""
+
 import os
 import tensorflow as tf
 
@@ -5,6 +10,8 @@ import numpy as np
 import time
 import inspect
 import collections
+
+import conv_util
 
 VGG_MEAN = [103.939, 116.779, 123.68]
 Model = collections.namedtuple("Model", "loss, outputs, train")
@@ -44,50 +51,75 @@ class Vgg19:
             red - VGG_MEAN[2],
         ])
         # assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
+        hw = bgr.get_shape().as_list()[1]
+        assert hw == bgr.get_shape().as_list()[2]
 
-        self.conv1_1 = self.conv_layer(bgr, 3, 64, "conv1_1")
-        self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2")
-        self.pool1 = self.max_pool(self.conv1_2, 'pool1')
+        # self.conv1_1 = self.conv_layer(bgr, 3, 64, "conv1_1")
+        # self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2")
+        # self.pool1 = self.max_pool(self.conv1_2, 'pool1')
 
-        self.conv2_1 = self.conv_layer(self.pool1, 64, 128, "conv2_1")
-        self.conv2_2 = self.conv_layer(self.conv2_1, 128, 128, "conv2_2")
-        self.pool2 = self.max_pool(self.conv2_2, 'pool2')
+        self.conv1_1 = conv_util.conv_layer(bgr, 64, 3, 1, name="conv1_1")
+        self.conv1_2 = conv_util.conv_layer(self.conv1_1, 64, 4, 2, name="conv1_2")
+        #
+        # self.conv2_1 = self.conv_layer(self.pool1, 64, 128, "conv2_1")
+        # self.conv2_2 = self.conv_layer(self.conv2_1, 128, 128, "conv2_2")
+        # self.pool2 = self.max_pool(self.conv2_2, 'pool2')
 
-        self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1")
-        self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2")
-        self.conv3_3 = self.conv_layer(self.conv3_2, 256, 256, "conv3_3")
-        self.conv3_4 = self.conv_layer(self.conv3_3, 256, 256, "conv3_4")
-        self.pool3 = self.max_pool(self.conv3_4, 'pool3')
+        self.conv2_1 = conv_util.conv_layer(self.conv1_2, 128, 3, 1, name="conv2_1")
+        self.conv2_2 = conv_util.conv_layer(self.conv2_1, 128, 4, 2, name="conv2_2")
+        #
+        # self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1")
+        # self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2")
+        # self.conv3_3 = self.conv_layer(self.conv3_2, 256, 256, "conv3_3")
+        # self.conv3_4 = self.conv_layer(self.conv3_3, 256, 256, "conv3_4")
+        # self.pool3 = self.max_pool(self.conv3_4, 'pool3')
+        self.conv3_1 = conv_util.conv_layer(self.conv2_2, 256, 3, 1, name="conv3_1")
+        self.conv3_2 = conv_util.conv_layer(self.conv3_1, 256, 3, 1, name="conv3_2")
+        self.conv3_3 = conv_util.conv_layer(self.conv3_2, 256, 3, 1, name="conv3_3")
+        self.conv3_4 = conv_util.conv_layer(self.conv3_3, 256, 4, 2, name="conv3_4")
+        #
+        # self.conv4_1 = self.conv_layer(self.pool3, 256, 512, "conv4_1")
+        # self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2")
+        # self.conv4_3 = self.conv_layer(self.conv4_2, 512, 512, "conv4_3")
+        # self.conv4_4 = self.conv_layer(self.conv4_3, 512, 512, "conv4_4")
+        # self.pool4 = self.max_pool(self.conv4_4, 'pool4')
+        self.conv4_1 = conv_util.conv_layer(self.conv3_4, 512, 3, 1, name="conv4_1")
+        self.conv4_2 = conv_util.conv_layer(self.conv4_1, 512, 3, 1, name="conv4_2")
+        self.conv4_3 = conv_util.conv_layer(self.conv4_2, 512, 3, 1, name="conv4_3")
+        self.conv4_4 = conv_util.conv_layer(self.conv4_3, 512, 4, 2, name="conv4_4")
+        #
+        # self.conv5_1 = self.conv_layer(self.pool4, 512, 512, "conv5_1")
+        # self.conv5_2 = self.conv_layer(self.conv5_1, 512, 512, "conv5_2")
+        # self.conv5_3 = self.conv_layer(self.conv5_2, 512, 512, "conv5_3")
+        # self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4")
+        # self.pool5 = self.max_pool(self.conv5_4, 'pool5')
+        self.conv5_1 = conv_util.conv_layer(self.conv4_4, 512, 3, 1, name="conv5_1")
+        self.conv5_2 = conv_util.conv_layer(self.conv5_1, 512, 3, 1, name="conv5_2")
+        self.conv5_3 = conv_util.conv_layer(self.conv5_2, 512, 3, 1, name="conv5_3")
+        self.conv5_4 = conv_util.conv_layer(self.conv5_3, 512, 4, 2, name="conv5_4")
+        #
+        if output_classes is not None:
+            # self.fc6 = self.fc_layer(self.pool5, ((hw / (2 ** 5)) ** 2) * 512, 4096, "fc6")  # 25088 = ((224 / (2 ** 5)) ** 2) * 512
+            self.fc6 = self.fc_layer(self.conv5_4, ((hw / (2 ** 5)) ** 2) * 512, 4096, "fc6")  # 25088 = ((224 / (2 ** 5)) ** 2) * 512
+            self.relu6 = tf.nn.relu(self.fc6)
+            if train_mode is not None:
+                self.relu6 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu6, 0.5), lambda: self.relu6)
+            elif self.trainable:
+                self.relu6 = tf.nn.dropout(self.relu6, 0.5)
 
-        self.conv4_1 = self.conv_layer(self.pool3, 256, 512, "conv4_1")
-        self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2")
-        self.conv4_3 = self.conv_layer(self.conv4_2, 512, 512, "conv4_3")
-        self.conv4_4 = self.conv_layer(self.conv4_3, 512, 512, "conv4_4")
-        self.pool4 = self.max_pool(self.conv4_4, 'pool4')
+            self.fc7 = self.fc_layer(self.relu6, 4096, 4096, "fc7")
+            self.relu7 = tf.nn.relu(self.fc7)
+            if train_mode is not None:
+                self.relu7 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu7, 0.5), lambda: self.relu7)
+            elif self.trainable:
+                self.relu7 = tf.nn.dropout(self.relu7, 0.5)
 
-        self.conv5_1 = self.conv_layer(self.pool4, 512, 512, "conv5_1")
-        self.conv5_2 = self.conv_layer(self.conv5_1, 512, 512, "conv5_2")
-        self.conv5_3 = self.conv_layer(self.conv5_2, 512, 512, "conv5_3")
-        self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4")
-        self.pool5 = self.max_pool(self.conv5_4, 'pool5')
+            self.fc8 = self.fc_layer(self.relu7, 4096, output_classes, "fc8")
 
-        self.fc6 = self.fc_layer(self.pool5, 25088, 4096, "fc6")  # 25088 = ((224 / (2 ** 5)) ** 2) * 512
-        self.relu6 = tf.nn.relu(self.fc6)
-        if train_mode is not None:
-            self.relu6 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu6, 0.5), lambda: self.relu6)
-        elif self.trainable:
-            self.relu6 = tf.nn.dropout(self.relu6, 0.5)
+            #
+            # self.fc8 = self.fc_layer(self.conv3_4, (hw / (2**3)) ** 2 * 256, output_classes, "fc8")
 
-        self.fc7 = self.fc_layer(self.relu6, 4096, 4096, "fc7")
-        self.relu7 = tf.nn.relu(self.fc7)
-        if train_mode is not None:
-            self.relu7 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu7, 0.5), lambda: self.relu7)
-        elif self.trainable:
-            self.relu7 = tf.nn.dropout(self.relu7, 0.5)
-
-        self.fc8 = self.fc_layer(self.relu7, 4096, output_classes, "fc8")
-
-        self.prob = tf.nn.softmax(self.fc8, name="prob")
+            self.prob = tf.nn.softmax(self.fc8, name="prob")
 
         self.data_dict = None
 
@@ -172,13 +204,33 @@ class Vgg19:
         for v in self.var_dict.values():
             count += reduce(lambda x, y: x * y, v.get_shape().as_list())
         return count
+    def net(self):
+        return {
+            "conv1_1": self.conv1_1,
+            "conv1_2": self.conv1_2,
+            "conv2_1": self.conv2_1,
+            "conv2_2": self.conv2_2,
+            "conv3_1": self.conv3_1,
+            "conv3_2": self.conv3_2,
+            "conv3_3": self.conv3_3,
+            "conv3_4": self.conv3_4,
+            "conv4_1": self.conv4_1,
+            "conv4_2": self.conv4_2,
+            "conv4_3": self.conv4_3,
+            "conv4_4": self.conv4_4,
+            "conv5_1": self.conv5_1,
+            "conv5_2": self.conv5_2,
+            "conv5_3": self.conv5_3,
+            "conv5_4": self.conv5_4,
+        }
+
 
 
 def create_model(inputs, targets, config):
     def create_classifier(inputs, targets):
-        vgg = Vgg19(vgg19_npy_path='vgg19.npy')
-        train_mode = tf.constant(config.mode=='train',dtype=tf.bool, name='train_mode')
-        # train_mode = tf.constant(False,dtype=tf.bool, name='train_mode')
+        vgg = Vgg19()
+        # train_mode = tf.constant(config.mode=='train',dtype=tf.bool, name='train_mode')
+        train_mode = tf.constant(False,dtype=tf.bool, name='train_mode')
         output_classes = targets.get_shape().as_list()[1]
         vgg.build(inputs, output_classes, train_mode)
         vgg_19_net = vgg.fc8

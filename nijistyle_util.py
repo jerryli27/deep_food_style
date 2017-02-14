@@ -18,7 +18,7 @@ from typing import Union, Tuple, List, Iterable
 
 import neural_doodle_util # TODO: delete
 import neural_util # TODO: delete
-import vgg19
+import custom_vgg19
 from general_util import get_np_array_num_elements
 from mrf_util import mrf_loss # TODO: delete
 
@@ -27,10 +27,10 @@ try:
 except NameError:
     from functools import reduce
 
-CONTENT_LAYER = 'layer_2'
-STYLE_LAYERS = ('layer_1', 'layer_2', 'layer_3', 'layer_4')  # This is used for texture generation (without content)
-STYLE_LAYERS_WITH_CONTENT = ('layer_1','layer_2', 'layer_3', 'layer_4')# ('layer_1', 'layer_2', 'layer_3', 'layer_4')
-STYLE_LAYERS_MRF = ('relu3_1', 'relu4_1')  # According to https://arxiv.org/abs/1601.04589.
+CONTENT_LAYER = 'conv2_1'
+STYLE_LAYERS = ('conv1_1', 'conv2_1', 'conv3_1', 'conv4_1')  # This is used for texture generation (without content)
+STYLE_LAYERS_WITH_CONTENT = ('conv1_1', 'conv2_1', 'conv3_1', 'conv4_1')# ('layer_1', 'layer_2', 'layer_3', 'layer_4')
+STYLE_LAYERS_MRF = ('conv3_1', 'conv4_1')  # According to https://arxiv.org/abs/1601.04589.
 
 
 def stylize(network, content, styles, shape, iterations, save_dir, content_weight=5.0, style_weight=100.0, tv_weight=100.0,
@@ -120,10 +120,10 @@ def stylize(network, content, styles, shape, iterations, save_dir, content_weigh
 
         # Compute content features in feed-forward mode
         content_image = tf.placeholder(tf.uint8, shape=shape, name='content_image')
-        content_image_float = tf.image.convert_image_dtype(content_image, dtype=tf.float32) * 2 - 1
+        content_image_float = tf.image.convert_image_dtype(content_image, dtype=tf.float32)
 
-        with tf.variable_scope("discriminator", reuse=False):
-            vgg_c = vgg19.Vgg19()
+        with tf.variable_scope("classifier", reuse=False):
+            vgg_c = custom_vgg19.Vgg19()
             vgg_c.build(content_image_float, None)
             net = vgg_c.net()
         content_features[CONTENT_LAYER] = net[CONTENT_LAYER]
@@ -152,10 +152,10 @@ def stylize(network, content, styles, shape, iterations, save_dir, content_weigh
         # image_float = tf.image.convert_image_dtype(image_uint8,dtype=tf.float32) * 2 - 1
 
         image_float = tf.Variable(initial)
-        image = tf.image.convert_image_dtype((image_float + 1) / 2,dtype=tf.uint8)
+        image = tf.image.convert_image_dtype(image_float,dtype=tf.uint8, saturate=True)
 
-        with tf.variable_scope("discriminator", reuse=True):
-            vgg_o = vgg19.Vgg19()
+        with tf.variable_scope("classifier", reuse=True):
+            vgg_o = custom_vgg19.Vgg19()
             vgg_o.build(image_float, None)
             net = vgg_o.net()
 
@@ -215,15 +215,15 @@ def stylize(network, content, styles, shape, iterations, save_dir, content_weigh
                 stderr.write('       tv loss: %g\n' % tv_loss.eval(feed_dict=feed_dict))
                 stderr.write('    total loss: %g\n' % loss.eval(feed_dict=feed_dict))
 
-        # Load discriminator weight.
+        # Load classifier weight.
 
         if '0.12.0' in tf.__version__:
             all_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
         else:
             all_vars = tf.get_collection(tf.GraphKeys.VARIABLES)
 
-        # discrim_tvars = [var for var in tf.trainable_variables() if var.name.startswith("discriminator")]
-        discrim_tvars = [var for var in all_vars if var.name.startswith("discriminator")]
+        # discrim_tvars = [var for var in tf.trainable_variables() if var.name.startswith("classifier")]
+        discrim_tvars = [var for var in all_vars if var.name.startswith("classifier")]
         saver = tf.train.Saver(discrim_tvars)
 
         ckpt = tf.train.get_checkpoint_state(save_dir)
@@ -299,10 +299,10 @@ def _precompute_image_features(img, layers, shape, save_dir):
     # than the gpu and therefore allow us to process larger style images using the extra memory. This will not have
     # an effect on the training speed later since the gram matrix size is not related to the size of the image.
     with g.as_default(), g.device('/cpu:0'), tf.Session() as sess:
-        with tf.variable_scope("discriminator", reuse=False):
+        with tf.variable_scope("classifier", reuse=False):
             image = tf.placeholder(tf.uint8, shape=shape)
-            image_float = tf.image.convert_image_dtype(image,dtype=tf.float32) * 2 - 1
-            vgg = vgg19.Vgg19()
+            image_float = tf.image.convert_image_dtype(image,dtype=tf.float32)
+            vgg = custom_vgg19.Vgg19()
             vgg.build(image_float, None)
             net = vgg.net()
             style_pre = np.array([img])
@@ -313,7 +313,7 @@ def _precompute_image_features(img, layers, shape, save_dir):
             else:
                 all_vars = tf.get_collection(tf.GraphKeys.VARIABLES)
 
-            discrim_tvars = [var for var in all_vars if var.name.startswith("discriminator")]
+            discrim_tvars = [var for var in all_vars if var.name.startswith("classifier")]
             saver = tf.train.Saver(discrim_tvars)
 
             ckpt = tf.train.get_checkpoint_state(save_dir)

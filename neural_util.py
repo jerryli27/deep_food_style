@@ -7,8 +7,6 @@ import numpy as np
 import tensorflow as tf
 from typing import Union, Tuple, List, Dict
 
-import vgg
-
 
 def get_tensor_num_elements(tensor):
     # type: (tf.Tensor) -> int

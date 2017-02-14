@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 from typing import Union, List
 import math
+import scipy.misc
 
 def get_name(path):
     name, _ = os.path.splitext(os.path.basename(path))
@@ -96,3 +97,14 @@ def read_and_resize_images(dirs, height=None, width=None, bw=False, rgba=False):
             else:
                 target_shape = (image_1.shape[0], image_1.shape[1])
         return imread(dirs, shape=target_shape, bw=bw, rgba=rgba)
+
+def imsave(path, img):
+    # type: (str, np.ndarray) -> None
+    """
+    Automatically clip the image represented in a numpy array to 0~255 and save the image.
+    :param path: Path to save the image.
+    :param img: Image represented in numpy array with a legal format for scipy.misc.imsave
+    :return: None
+    """
+    img = np.clip(img, 0, 255).astype(np.uint8)
+    scipy.misc.imsave(path, img)
