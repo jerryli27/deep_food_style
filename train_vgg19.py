@@ -28,6 +28,12 @@ from general_util import *
 
 EPOCH_TRAINABLE = {2: 'conv5_1', 3: 'conv4_1', 4: 'conv3_1', 5:'conv2_1', 6:'conv1_1'}
 
+def get_all_variables():
+    if '0.12.0' in tf.__version__:
+        return tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+    else:
+        return tf.get_collection(tf.GraphKeys.VARIABLES)
+
 def main(a):
     if a.seed is None:
         a.seed = random.randint(0, 2**31 - 1)
@@ -115,13 +121,20 @@ def main(a):
 
         if a.checkpoint is not None:
             print("loading model from checkpoint")
-            checkpoint = tf.train.latest_checkpoint(a.checkpoint)
-            saver.restore(sess, checkpoint)
-        else:
-            saver.save(sess, os.path.join(a.output_dir, "model"), global_step=sv.global_step)
-            print("test loading model from checkpoint")
-            checkpoint = tf.train.latest_checkpoint(os.path.join(a.output_dir, "model"))
-            saver.restore(sess, checkpoint)
+            # Because we now support training different parts of the vgg network, I have to specify which variables to
+            # restore.
+            if a.trainable_layer != a.prev_trainable_layer:
+                all_var = get_all_variables()
+                all_non_restorable_adam_var = [var for var in all_var if "Adam" not in var.name]
+                all_restorable_var = [var for var in all_var if "Adam" not in var.name]
+                sess.run(tf.variables_initializer(all_non_restorable_adam_var))
+                saver = tf.train.Saver(var_list=all_restorable_var, max_to_keep=1)
+                checkpoint = tf.train.latest_checkpoint(a.checkpoint)
+                saver.restore(sess, checkpoint)
+                saver = tf.train.Saver(max_to_keep=1)
+            else:
+                checkpoint = tf.train.latest_checkpoint(a.checkpoint)
+                saver.restore(sess, checkpoint)
 
         if a.mode == "test":
             # testing

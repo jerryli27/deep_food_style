@@ -1,7 +1,8 @@
 import argparse
 import train_vgg19
+import tensorflow as tf
 
-EPOCH_TRAINABLE = {2: 'conv5_1', 3: 'conv4_1', 4: 'conv3_1', 5:'conv2_1', 6:'conv1_1'}
+EPOCH_TRAINABLE = {2: 'fc6',3: 'conv5_1', 4: 'conv4_1', 5: 'conv3_1', 6:'conv2_1', 7:'conv1_1'}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--input_dir", required=True, help="path to folder containing images")
@@ -35,10 +36,16 @@ parser.add_argument("--beta1", type=float, default=0.5, help="momentum term of a
 parser.add_argument("--l1_weight", type=float, default=100.0, help="weight on L1 term for generator gradient")
 parser.add_argument("--gan_weight", type=float, default=1.0, help="weight on GAN term for generator gradient")
 parser.add_argument("--trainable_layer", default="fc6", choices=["conv1_1", "conv2_1", "conv3_1", "conv4_1", "conv5_1", "fc6"])
+parser.add_argument("--prev_trainable_layer", default="fc6", choices=["conv1_1", "conv2_1", "conv3_1", "conv4_1", "conv5_1", "fc6"])
 a = parser.parse_args()
 
 max_epochs = a.max_epochs
 for epoch, trainable_layer in EPOCH_TRAINABLE.iteritems():
+
+    # Temporary fix.
+    if trainable_layer == 'fc6':
+        continue
+
     if epoch > max_epochs:
         break
     if trainable_layer == "conv1_1":
@@ -46,6 +53,8 @@ for epoch, trainable_layer in EPOCH_TRAINABLE.iteritems():
     else:
         a.max_epochs = epoch
     print("Current max epoch: %d, current trainable layer: %s" %(epoch, trainable_layer))
+    a.prev_trainable_layer = a.trainable_layer
     a.trainable_layer = trainable_layer
     train_vgg19.main(a)
     a.checkpoint = a.output_dir
+    tf.reset_default_graph() # Without doing this, the tf graph will still exist after the function exists.

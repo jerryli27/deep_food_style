@@ -101,7 +101,6 @@ class Vgg19:
         # self.prob = tf.nn.softmax(self.fc8, name="prob")
 
         if output_classes is not None:
-            assert trainable_layer == "fc6"
             self.trainable = True
             self.fc6 = self.fc_layer(self.pool5, ((hw / (2 ** 5)) ** 2) * 512, 4096, "fc6")  # 25088 = ((224 / (2 ** 5)) ** 2) * 512
             self.relu6 = tf.nn.relu(self.fc6)
