@@ -26,7 +26,7 @@ def build_parser():
                         metavar='CONTENT', default='', required=False)
     parser.add_argument('--save_dir', type=str,
                         dest='save_dir', help='save_dir.',
-                        metavar='SAVE_DIR', required=True)
+                        metavar='SAVE_DIR', required=False)
     parser.add_argument('--styles',
                         dest='styles', nargs='+', help='one or more style images',
                         metavar='STYLE', required=True)
@@ -151,6 +151,9 @@ def main():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    if options.save_dir is None:
+        print("No savedir input, using standard pretrained vgg19 net instead.")
+
     for iteration, image in stylize(network=None, content=content_image, styles=style_images,
                                     shape=target_shape, iterations=options.iterations,save_dir=options.save_dir,
                                     content_weight=options.content_weight, style_weight=options.style_weight,
@@ -178,4 +181,8 @@ if __name__ == '__main__':
     main()
 
 """
-python nijistyle.py --content=1.png --styles=4.png --save_dir=UECFOOD256_train_iter/ --output=output/test.jpg --iterations=1000 --checkpoint-output="output_checkpoint/test_%s.jpg" --checkpoint-iterations=10 --width=64 --height=64 --print-iterations=10 --learning-rate=10 --style-weight=100 --content-weight=0 --tv-weight=0"""
+python nijistyle.py --content=1.png --styles=4.png --save_dir=UECFOOD256_train_iter/ --output=output/test.jpg --iterations=1000 --checkpoint-output="output_checkpoint/test_%s.jpg" --checkpoint-iterations=10 --width=64 --height=64 --print-iterations=10 --learning-rate=10 --style-weight=100 --content-weight=0 --tv-weight=0
+
+
+python nijistyle.py --content=1.png --styles=4.png --save_dir=UECFOOD256_train_iter/ --output=output/test.jpg --iterations=1000 --checkpoint-output="output_checkpoint/test_%s.jpg" --checkpoint-iterations=10 --width=512 --height=512 --print-iterations=10 --learning-rate=0.01 --style-weight=100 --content-weight=5 --tv-weight=5
+"""

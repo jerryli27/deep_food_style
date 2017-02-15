@@ -33,7 +33,7 @@ STYLE_LAYERS_WITH_CONTENT = ('conv1_1',) #, 'conv2_1', 'conv3_1', 'conv4_1')# ('
 STYLE_LAYERS_MRF = ('conv3_1', 'conv4_1')  # According to https://arxiv.org/abs/1601.04589.
 
 
-def stylize(network, content, styles, shape, iterations, save_dir, content_weight=5.0, style_weight=100.0, tv_weight=100.0,
+def stylize(network, content, styles, shape, iterations, save_dir = None, content_weight=5.0, style_weight=100.0, tv_weight=100.0,
             style_blend_weights=None, learning_rate=10.0, initial=None, use_mrf=False, use_semantic_masks=False,
             mask_resize_as_feature=True, output_semantic_mask=None, style_semantic_masks=None,
             semantic_masks_weight=1.0, print_iterations=None, checkpoint_iterations=None,
@@ -223,20 +223,20 @@ def stylize(network, content, styles, shape, iterations, save_dir, content_weigh
         else:
             all_vars = tf.get_collection(tf.GraphKeys.VARIABLES)
 
-        # discrim_tvars = [var for var in tf.trainable_variables() if var.name.startswith("classifier")]
-        discrim_tvars = [var for var in all_vars if var.name.startswith("classifier")]
-        saver = tf.train.Saver(discrim_tvars)
-
-        ckpt = tf.train.get_checkpoint_state(save_dir)
-        if ckpt and ckpt.model_checkpoint_path:
-            saver.restore(sess, ckpt.model_checkpoint_path)
+        if save_dir is not None:
+            # discrim_tvars = [var for var in tf.trainable_variables() if var.name.startswith("classifier")]
+            discrim_tvars = [var for var in all_vars if var.name.startswith("classifier")]
+            saver = tf.train.Saver(discrim_tvars)
+            ckpt = tf.train.get_checkpoint_state(save_dir)
+            if ckpt and ckpt.model_checkpoint_path:
+                saver.restore(sess, ckpt.model_checkpoint_path)
+            else:
+                raise AssertionError("Cannot load from save directory.")
+            var_not_saved = [item for item in all_vars if item not in discrim_tvars]
+            print('Var not saved', var_not_saved)
+            sess.run(tf.initialize_variables(var_not_saved))
         else:
-            raise AssertionError("Cannot load from save directory.")
-        var_not_saved = [item for item in all_vars if item not in discrim_tvars]
-        print('Var not saved', var_not_saved)
-        sess.run(tf.initialize_variables(var_not_saved))
-
-        # sess.run(tf.initialize_all_variables())
+            sess.run(tf.initialize_all_variables())
 
         # optimization
         best_loss = float('inf')
@@ -259,9 +259,9 @@ def stylize(network, content, styles, shape, iterations, save_dir, content_weigh
                 #     (None if last_step else i),
                 #     vgg.unprocess(best.reshape(shape[1:]), mean_pixel)
                 # )
-                print(best)
+                # print(best)
                 best_float32 = image_float.eval()
-                print(best_float32)
+                # print(best_float32)
                 yield (
                     (None if last_step else i),
                     best.reshape(shape[1:]) ##TODO: change back to best?
@@ -310,19 +310,21 @@ def _precompute_image_features(img, layers, shape, save_dir):
                 else:
                     all_vars = tf.get_collection(tf.GraphKeys.VARIABLES)
 
-                discrim_tvars = [var for var in all_vars if var.name.startswith("classifier")]
-                saver = tf.train.Saver(discrim_tvars)
+                if save_dir is not None:
+                    discrim_tvars = [var for var in all_vars if var.name.startswith("classifier")]
+                    saver = tf.train.Saver(discrim_tvars)
 
-                ckpt = tf.train.get_checkpoint_state(save_dir)
-                if ckpt and ckpt.model_checkpoint_path:
-                    saver.restore(sess, ckpt.model_checkpoint_path)
+                    ckpt = tf.train.get_checkpoint_state(save_dir)
+                    if ckpt and ckpt.model_checkpoint_path:
+                        saver.restore(sess, ckpt.model_checkpoint_path)
+                    else:
+                        raise AssertionError("Cannot load from save directory.")
+                    #
+                    var_not_saved = [item for item in all_vars if item not in discrim_tvars]
+                    print('Var not saved', var_not_saved)
+                    sess.run(tf.initialize_variables(var_not_saved))
                 else:
-                    raise AssertionError("Cannot load from save directory.")
-                #
-                var_not_saved = [item for item in all_vars if item not in discrim_tvars]
-                print('Var not saved', var_not_saved)
-                sess.run(tf.initialize_variables(var_not_saved))
-                # sess.run(tf.initialize_all_variables())
+                    sess.run(tf.initialize_all_variables())
 
 
                 for layer in layers:
