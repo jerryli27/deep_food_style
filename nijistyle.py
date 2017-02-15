@@ -178,5 +178,4 @@ if __name__ == '__main__':
     main()
 
 """
-python nijistyle.py --content=1.png --styles=4.png --save_dir=UECFOOD3_train/ --output=output/test.jpg --learning-rate=0.1 --iterations=1000 --style-weight=0 --content-weight=5 --tv-weight=0 --checkpoint-output="output_checkpoint/test_%s.jpg" --checkpoint-iterations=50 --width=128 --height=128 --print-iterations=10
-"""
+python nijistyle.py --content=1.png --styles=4.png --save_dir=UECFOOD256_train_iter/ --output=output/test.jpg --iterations=1000 --checkpoint-output="output_checkpoint/test_%s.jpg" --checkpoint-iterations=10 --width=64 --height=64 --print-iterations=10 --learning-rate=10 --style-weight=100 --content-weight=0 --tv-weight=0"""

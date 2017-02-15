@@ -36,7 +36,6 @@ parser.add_argument("--beta1", type=float, default=0.5, help="momentum term of a
 parser.add_argument("--l1_weight", type=float, default=100.0, help="weight on L1 term for generator gradient")
 parser.add_argument("--gan_weight", type=float, default=1.0, help="weight on GAN term for generator gradient")
 parser.add_argument("--trainable_layer", default="fc6", choices=["conv1_1", "conv2_1", "conv3_1", "conv4_1", "conv5_1", "fc6"])
-parser.add_argument("--prev_trainable_layer", default="fc6", choices=["conv1_1", "conv2_1", "conv3_1", "conv4_1", "conv5_1", "fc6"])
 a = parser.parse_args()
 
 max_epochs = a.max_epochs
@@ -53,7 +52,6 @@ for epoch, trainable_layer in EPOCH_TRAINABLE.iteritems():
     else:
         a.max_epochs = epoch
     print("Current max epoch: %d, current trainable layer: %s" %(epoch, trainable_layer))
-    a.prev_trainable_layer = a.trainable_layer
     a.trainable_layer = trainable_layer
     train_vgg19.main(a)
     a.checkpoint = a.output_dir

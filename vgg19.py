@@ -7,7 +7,7 @@ import inspect
 import collections
 
 VGG_MEAN = [103.939, 116.779, 123.68]
-Model = collections.namedtuple("Model", "loss, outputs, train")
+Model = collections.namedtuple("Model", "loss, outputs, train, accuracy")
 
 class Vgg19:
     """
@@ -168,18 +168,23 @@ class Vgg19:
     def get_var(self, initial_value, name, idx, var_name):
         if self.data_dict is not None and name in self.data_dict:
             value = self.data_dict[name][idx]
+            value_shape = value.shape
             if list(value.shape) != initial_value.get_shape().as_list():
                 print('Warning. Stored variable %s has a different shape than current setting. '
                       'Stored shape is %s while current setting shape is %s. Using current setting.'
                       %(var_name, str(value.shape), str(initial_value.get_shape().as_list())))
                 value = initial_value
+                value_shape = initial_value.get_shape().as_list()
         else:
             value = initial_value
+            value_shape = initial_value.get_shape().as_list()
 
         if self.trainable:
-            var = tf.Variable(value, name=var_name)
+            # var = tf.Variable(value, name=var_name)
+            var = tf.get_variable(name=var_name, initializer=value)
         else:
-            var = tf.Variable(value, name=var_name, trainable=False) # tf.constant(value, dtype=tf.float32, name=var_name)
+            # var = tf.Variable(value, name=var_name, trainable=False) # tf.constant(value, dtype=tf.float32, name=var_name)
+            var = tf.get_variable(name=var_name, initializer=value, trainable=False)
 
         self.var_dict[(name, idx)] = var
 
@@ -208,14 +213,29 @@ class Vgg19:
         for v in self.var_dict.values():
             count += reduce(lambda x, y: x * y, v.get_shape().as_list())
         return count
-
+    def net(self):
+        return {
+            "conv1_1": self.conv1_1,
+            "conv1_2": self.conv1_2,
+            "conv2_1": self.conv2_1,
+            "conv2_2": self.conv2_2,
+            "conv3_1": self.conv3_1,
+            "conv3_2": self.conv3_2,
+            "conv3_3": self.conv3_3,
+            "conv3_4": self.conv3_4,
+            "conv4_1": self.conv4_1,
+            "conv4_2": self.conv4_2,
+            "conv4_3": self.conv4_3,
+            "conv4_4": self.conv4_4,
+            "conv5_1": self.conv5_1,
+            "conv5_2": self.conv5_2,
+            "conv5_3": self.conv5_3,
+            "conv5_4": self.conv5_4,
+        }
 
 def create_model(inputs, targets, config):
     def create_classifier(inputs, targets):
-        if config.checkpoint is not None:
-            vgg = Vgg19()
-        else:
-            vgg = Vgg19(vgg19_npy_path='vgg19.npy') # Read model from pretrained vgg
+        vgg = Vgg19(vgg19_npy_path='vgg19.npy') # Read model from pretrained vgg
         train_mode = tf.constant(config.mode=='train',dtype=tf.bool, name='train_mode')
         # train_mode = tf.constant(False,dtype=tf.bool, name='train_mode')
         output_classes = targets.get_shape().as_list()[1]
@@ -233,11 +253,18 @@ def create_model(inputs, targets, config):
     with tf.name_scope("loss"):
         targets_indices = tf.argmax(targets,axis=1)
         loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(predict, targets_indices))
-        # loss = -tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(predict, targets))
+
+        predict_indices = tf.argmax(predict, 1)
+        correct_pred = tf.equal(predict_indices, targets_indices)
+        accuracy = tf.reduce_mean(tf.cast(correct_pred, tf.float32)) # TODO: Maybe apply ema?
+
 
     with tf.name_scope("train"):
         classifier_tvars = [var for var in tf.trainable_variables() if var.name.startswith("classifier")]
-        classifier_optim = tf.train.AdamOptimizer(config.lr, config.beta1)
+        # classifier_optim = tf.train.AdamOptimizer(config.lr, config.beta1)
+        # I am forced to use this optimizer because Adam optimizer creates its own variable which is not suitable for
+        # modifying the network for each stage of the training process.
+        classifier_optim = tf.train.GradientDescentOptimizer(config.lr)
         # classifier_train = classifier_optim.minimize(loss, var_list=classifier_tvars)
         classifier_train = classifier_optim.minimize(loss)
 
@@ -252,4 +279,5 @@ def create_model(inputs, targets, config):
         loss=ema.average(loss),
         outputs=predict,
         train=tf.group(update_losses, incr_global_step, classifier_train),
+        accuracy=accuracy
     )

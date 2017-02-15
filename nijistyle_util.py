@@ -18,7 +18,7 @@ from typing import Union, Tuple, List, Iterable
 
 import neural_doodle_util # TODO: delete
 import neural_util # TODO: delete
-import custom_vgg19
+import vgg19
 from general_util import get_np_array_num_elements
 from mrf_util import mrf_loss # TODO: delete
 
@@ -27,9 +27,9 @@ try:
 except NameError:
     from functools import reduce
 
-CONTENT_LAYER = 'conv2_1'
+CONTENT_LAYER = 'conv4_2'
 STYLE_LAYERS = ('conv1_1', 'conv2_1', 'conv3_1', 'conv4_1')  # This is used for texture generation (without content)
-STYLE_LAYERS_WITH_CONTENT = ('conv1_1', 'conv2_1', 'conv3_1', 'conv4_1')# ('layer_1', 'layer_2', 'layer_3', 'layer_4')
+STYLE_LAYERS_WITH_CONTENT = ('conv1_1',) #, 'conv2_1', 'conv3_1', 'conv4_1')# ('layer_1', 'layer_2', 'layer_3', 'layer_4')
 STYLE_LAYERS_MRF = ('conv3_1', 'conv4_1')  # According to https://arxiv.org/abs/1601.04589.
 
 
@@ -112,18 +112,23 @@ def stylize(network, content, styles, shape, iterations, save_dir, content_weigh
     style_features = [{} for _ in styles]
     output_semantic_mask_features = {}
 
+    for i in range(len(styles)):
+        # Using precompute_image_features, which calculates on cpu and thus allow larger images.
+        style_features[i] = _precompute_image_features(styles[i], STYLE_LAYERS, style_shapes[i], save_dir)
+
     # The default behavior of tensorflow was to allocate all gpu memory. Here it is set to only use as much gpu memory
     # as it needs.
     # TODO: CHANGE IT BACK< USING CPU NOW
     with tf.Graph().as_default(), tf.Session(
-            config=tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True),device_count = {'GPU': 0})) as sess:
+            config=tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True),device_count = {'GPU': 1})) as sess:
 
+        # with tf.name_scope("classifier"):
         # Compute content features in feed-forward mode
         content_image = tf.placeholder(tf.uint8, shape=shape, name='content_image')
         content_image_float = tf.image.convert_image_dtype(content_image, dtype=tf.float32)
 
-        with tf.variable_scope("classifier", reuse=False):
-            vgg_c = custom_vgg19.Vgg19()
+        with tf.variable_scope("classifier/classifier", reuse=False):
+            vgg_c = vgg19.Vgg19(vgg19_npy_path='vgg19.npy')
             vgg_c.build(content_image_float, None)
             net = vgg_c.net()
         content_features[CONTENT_LAYER] = net[CONTENT_LAYER]
@@ -136,10 +141,6 @@ def stylize(network, content, styles, shape, iterations, save_dir, content_weigh
         # Compute style features in feed-forward mode.
         if content_img_style_weight_mask is not None:
             style_weight_mask_layer_dict = neural_doodle_util.masks_average_pool(content_img_style_weight_mask)
-
-        for i in range(len(styles)):
-            # Using precompute_image_features, which calculates on cpu and thus allow larger images.
-            style_features[i] = _precompute_image_features(styles[i], STYLE_LAYERS, style_shapes[i], save_dir)
 
         if initial is None:
             initial = tf.random_normal(shape) * 0.256
@@ -154,8 +155,8 @@ def stylize(network, content, styles, shape, iterations, save_dir, content_weigh
         image_float = tf.Variable(initial)
         image = tf.image.convert_image_dtype(image_float,dtype=tf.uint8, saturate=True)
 
-        with tf.variable_scope("classifier", reuse=True):
-            vgg_o = custom_vgg19.Vgg19()
+        with tf.variable_scope("classifier/classifier", reuse=True):
+            vgg_o = vgg19.Vgg19(vgg19_npy_path='vgg19.npy')
             vgg_o.build(image_float, None)
             net = vgg_o.net()
 
@@ -231,17 +232,11 @@ def stylize(network, content, styles, shape, iterations, save_dir, content_weigh
             saver.restore(sess, ckpt.model_checkpoint_path)
         else:
             raise AssertionError("Cannot load from save directory.")
-
         var_not_saved = [item for item in all_vars if item not in discrim_tvars]
+        print('Var not saved', var_not_saved)
         sess.run(tf.initialize_variables(var_not_saved))
 
-
-
-
-
-
-
-
+        # sess.run(tf.initialize_all_variables())
 
         # optimization
         best_loss = float('inf')
@@ -249,7 +244,7 @@ def stylize(network, content, styles, shape, iterations, save_dir, content_weigh
         feed_dict = {}
         if content is not None:
             feed_dict[content_image] = content_pre
-        sess.run(tf.initialize_all_variables(), feed_dict=feed_dict)
+        # sess.run(tf.initialize_all_variables(), feed_dict=feed_dict)
         for i in range(iterations):
             last_step = (i == iterations - 1)
             print_progress(i, feed_dict, last=last_step)
@@ -269,7 +264,7 @@ def stylize(network, content, styles, shape, iterations, save_dir, content_weigh
                 print(best_float32)
                 yield (
                     (None if last_step else i),
-                    best.reshape(shape[1:])
+                    best.reshape(shape[1:]) ##TODO: change back to best?
                 )
 
 
@@ -299,37 +294,44 @@ def _precompute_image_features(img, layers, shape, save_dir):
     # than the gpu and therefore allow us to process larger style images using the extra memory. This will not have
     # an effect on the training speed later since the gram matrix size is not related to the size of the image.
     with g.as_default(), g.device('/cpu:0'), tf.Session() as sess:
-        with tf.variable_scope("classifier", reuse=False):
-            image = tf.placeholder(tf.uint8, shape=shape)
-            image_float = tf.image.convert_image_dtype(image,dtype=tf.float32)
-            vgg = custom_vgg19.Vgg19()
-            vgg.build(image_float, None)
-            net = vgg.net()
-            style_pre = np.array([img])
-            style_pre = style_pre.astype(np.uint8)
 
-            if '0.12.0' in tf.__version__:
-                all_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-            else:
-                all_vars = tf.get_collection(tf.GraphKeys.VARIABLES)
+        with tf.name_scope("classifier/classifier"):
+            with tf.variable_scope("classifier/classifier", reuse=False):  # TODO: delete to classifier later. This is a temporary fix.
+                image = tf.placeholder(tf.uint8, shape=shape)
+                image_float = tf.image.convert_image_dtype(image,dtype=tf.float32)
+                vgg = vgg19.Vgg19(vgg19_npy_path='vgg19.npy')
+                vgg.build(image_float, None)
+                net = vgg.net()
+                style_pre = np.array([img])
+                style_pre = style_pre.astype(np.uint8)
 
-            discrim_tvars = [var for var in all_vars if var.name.startswith("classifier")]
-            saver = tf.train.Saver(discrim_tvars)
+                if '0.12.0' in tf.__version__:
+                    all_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+                else:
+                    all_vars = tf.get_collection(tf.GraphKeys.VARIABLES)
 
-            ckpt = tf.train.get_checkpoint_state(save_dir)
-            if ckpt and ckpt.model_checkpoint_path:
-                saver.restore(sess, ckpt.model_checkpoint_path)
-            else:
-                raise AssertionError("Cannot load from save directory.")
+                discrim_tvars = [var for var in all_vars if var.name.startswith("classifier")]
+                saver = tf.train.Saver(discrim_tvars)
 
-            var_not_saved = [item for item in all_vars if item not in discrim_tvars]
-            sess.run(tf.initialize_variables(var_not_saved))
+                ckpt = tf.train.get_checkpoint_state(save_dir)
+                if ckpt and ckpt.model_checkpoint_path:
+                    saver.restore(sess, ckpt.model_checkpoint_path)
+                else:
+                    raise AssertionError("Cannot load from save directory.")
+                #
+                var_not_saved = [item for item in all_vars if item not in discrim_tvars]
+                print('Var not saved', var_not_saved)
+                sess.run(tf.initialize_variables(var_not_saved))
+                # sess.run(tf.initialize_all_variables())
 
 
-            for layer in layers:
-                # Calculate and store gramian.
-                features = net[layer].eval(feed_dict={image: style_pre})
-                features = np.reshape(features, (-1, features.shape[3]))
-                gram = np.matmul(features.T, features) / features.size
-                features_dict[layer] = gram
+                for layer in layers:
+                    # Calculate and store gramian.
+                    print(style_pre)
+                    features = net[layer].eval(feed_dict={image: style_pre})
+                    features = np.reshape(features, (-1, features.shape[3]))
+                    gram = np.matmul(features.T, features) / features.size
+                    features_dict[layer] = gram
+                    print('gram')
+                    print(gram)
     return features_dict
