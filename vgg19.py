@@ -270,7 +270,7 @@ def create_model(inputs, targets, config):
 
 
     ema = tf.train.ExponentialMovingAverage(decay=0.99)
-    update_losses = ema.apply([loss,])
+    update_losses = ema.apply([loss,accuracy,])
 
     global_step = tf.contrib.framework.get_or_create_global_step()
     incr_global_step = tf.assign(global_step, global_step+1)
@@ -279,5 +279,5 @@ def create_model(inputs, targets, config):
         loss=ema.average(loss),
         outputs=predict,
         train=tf.group(update_losses, incr_global_step, classifier_train),
-        accuracy=accuracy
+        accuracy=ema.average(accuracy)
     )

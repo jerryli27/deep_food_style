@@ -28,8 +28,8 @@ except NameError:
     from functools import reduce
 
 CONTENT_LAYER = 'conv4_2'
-STYLE_LAYERS = ('conv1_1', 'conv2_1', 'conv3_1', 'conv4_1')  # This is used for texture generation (without content)
-STYLE_LAYERS_WITH_CONTENT = ('conv1_1',) #, 'conv2_1', 'conv3_1', 'conv4_1')# ('layer_1', 'layer_2', 'layer_3', 'layer_4')
+STYLE_LAYERS = ('conv1_1', 'conv2_1', 'conv3_1', 'conv4_1', "conv5_1")  # This is used for texture generation (without content)
+STYLE_LAYERS_WITH_CONTENT = ('conv1_1', 'conv2_1', 'conv3_1', 'conv4_1', "conv5_1") #('layer_1', 'layer_2', 'layer_3', 'layer_4')
 STYLE_LAYERS_MRF = ('conv3_1', 'conv4_1')  # According to https://arxiv.org/abs/1601.04589.
 
 
@@ -119,8 +119,10 @@ def stylize(network, content, styles, shape, iterations, save_dir = None, conten
     # The default behavior of tensorflow was to allocate all gpu memory. Here it is set to only use as much gpu memory
     # as it needs.
     # TODO: CHANGE IT BACK< USING CPU NOW
-    with tf.Graph().as_default(), tf.Session(
-            config=tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True),device_count = {'GPU': 1})) as sess:
+    # tf_config = tf.ConfigProto(gpu_options=tf.GPUOptions(device_count = {'GPU': 1})) #
+    tf_config = tf.ConfigProto()
+    tf_config.gpu_options.per_process_gpu_memory_fraction = 0.45
+    with tf.Graph().as_default(), tf.Session(config=tf_config) as sess:
 
         # with tf.name_scope("classifier"):
         # Compute content features in feed-forward mode
@@ -293,7 +295,7 @@ def _precompute_image_features(img, layers, shape, save_dir):
     # Choose to use cpu here because we only need to compute this once and using cpu would provide us more memory
     # than the gpu and therefore allow us to process larger style images using the extra memory. This will not have
     # an effect on the training speed later since the gram matrix size is not related to the size of the image.
-    with g.as_default(), g.device('/cpu:0'), tf.Session() as sess:
+    with g.as_default(), g.device('/cpu:0'), tf.Session(config=tf.ConfigProto(device_count = {'GPU': 0})) as sess:
 
         with tf.name_scope("classifier/classifier"):
             with tf.variable_scope("classifier/classifier", reuse=False):  # TODO: delete to classifier later. This is a temporary fix.
@@ -329,11 +331,8 @@ def _precompute_image_features(img, layers, shape, save_dir):
 
                 for layer in layers:
                     # Calculate and store gramian.
-                    print(style_pre)
                     features = net[layer].eval(feed_dict={image: style_pre})
                     features = np.reshape(features, (-1, features.shape[3]))
                     gram = np.matmul(features.T, features) / features.size
                     features_dict[layer] = gram
-                    print('gram')
-                    print(gram)
     return features_dict

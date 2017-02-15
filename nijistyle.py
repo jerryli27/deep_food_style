@@ -184,5 +184,9 @@ if __name__ == '__main__':
 python nijistyle.py --content=1.png --styles=4.png --save_dir=UECFOOD256_train_iter/ --output=output/test.jpg --iterations=1000 --checkpoint-output="output_checkpoint/test_%s.jpg" --checkpoint-iterations=10 --width=64 --height=64 --print-iterations=10 --learning-rate=10 --style-weight=100 --content-weight=0 --tv-weight=0
 
 
-python nijistyle.py --content=1.png --styles=4.png --save_dir=UECFOOD256_train_iter/ --output=output/test.jpg --iterations=1000 --checkpoint-output="output_checkpoint/test_%s.jpg" --checkpoint-iterations=10 --width=512 --height=512 --print-iterations=10 --learning-rate=0.01 --style-weight=100 --content-weight=5 --tv-weight=5
+python nijistyle.py --content=1.png --styles=4.png --save_dir=UECFOOD256_train_iter/ --output=output/test.jpg --iterations=5000 --checkpoint-output="output_checkpoint/test_%s.jpg" --checkpoint-iterations=10 --width=256 --height=256 --print-iterations=10 --learning-rate=0.1 --style-weight=100 --content-weight=5 --tv-weight=5
+python nijistyle.py --content=1.png --styles=4.png --output=output/native_vgg19_test.jpg --iterations=5000 --checkpoint-output="output_checkpoint/native_vgg19_test_%s.jpg" --checkpoint-iterations=10 --width=256 --height=256 --print-iterations=10 --learning-rate=0.1 --style-weight=100 --content-weight=5 --tv-weight=5
+
+python nijistyle.py --content=feed_forward_style_images/1.jpg --styles=feed_forward_style_images/4.jpg --save_dir=UECFOOD256_train_iter/ --output=output/test.jpg --iterations=1000 --checkpoint-output="output_checkpoint/test_%s.jpg" --checkpoint-iterations=10 --width=256 --height=256 --print-iterations=10 --learning-rate=0.05 --style-weight=100 --content-weight=5 --tv-weight=5
+python nijistyle.py --content=feed_forward_style_images/1.jpg --styles=feed_forward_style_images/4.jpg --output=output/native_vgg19_test.jpg --iterations=1000 --checkpoint-output="output_checkpoint/native_vgg19_test_%s.jpg" --checkpoint-iterations=10 --width=256 --height=256 --print-iterations=10 --learning-rate=0.05 --style-weight=100 --content-weight=5 --tv-weight=5
 """

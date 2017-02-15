@@ -109,7 +109,9 @@ def main(a):
 
     logdir = a.output_dir if (a.trace_freq > 0 or a.summary_freq > 0) else None
     sv = tf.train.Supervisor(logdir=logdir, save_summaries_secs=0, saver=None)
-    with sv.managed_session() as sess:
+    tf_config = tf.ConfigProto()
+    tf_config.gpu_options.per_process_gpu_memory_fraction = 0.45
+    with sv.managed_session(tf_config) as sess:
         print("parameter_count =", sess.run(parameter_count))
 
         if a.checkpoint is not None:
@@ -234,5 +236,5 @@ if __name__ == '__main__':
 python train_vgg19.py --mode train --output_dir sanity_check_train --max_epochs 200 --input_dir /home/xor/datasets/UECFOOD100 --display_freq=5000
 python train_vgg19.py --mode train --output_dir sanity_check_train --max_epochs 20 --input_dir /mnt/tf_drive/home/ubuntu/datasets/UECFOOD256_sanity_check/ --display_freq=5000
 python train_vgg19.py --mode test --output_dir sanity_check_test --input_dir /mnt/tf_drive/home/ubuntu/datasets/UECFOOD256_sanity_check/ --checkpoint sanity_check_train
-python train_vgg19.py --mode train --output_dir UECFOOD256_train --max_epochs 20 --input_dir /mnt/tf_drive/home/ubuntu/datasets/UECFOOD256/ --display_freq=1000 --checkpoint=UECFOOD256_train
+python train_vgg19.py --mode train --output_dir UECFOOD256_train_iter_cont --max_epochs 50 --input_dir /mnt/tf_drive/home/ubuntu/datasets/UECFOOD256/ --display_freq=5000 --checkpoint=UECFOOD256_train_iter --trainable_layer=conv1_1
 """
