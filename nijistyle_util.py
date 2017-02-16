@@ -129,7 +129,7 @@ def stylize(network, content, styles, shape, iterations, save_dir = None, conten
         content_image = tf.placeholder(tf.uint8, shape=shape, name='content_image')
         content_image_float = tf.image.convert_image_dtype(content_image, dtype=tf.float32)
 
-        with tf.variable_scope("classifier/classifier", reuse=False):
+        with tf.variable_scope("classifier", reuse=False):
             vgg_c = vgg19.Vgg19(vgg19_npy_path='vgg19.npy')
             vgg_c.build(content_image_float, None)
             net = vgg_c.net()
@@ -145,7 +145,7 @@ def stylize(network, content, styles, shape, iterations, save_dir = None, conten
             style_weight_mask_layer_dict = neural_doodle_util.masks_average_pool(content_img_style_weight_mask)
 
         if initial is None:
-            initial = tf.random_normal(shape) * 0.256
+            initial = tf.random_normal(shape) * 0.001
         else:
             # initial = np.array([vgg.preprocess(initial, mean_pixel)])
             initial = np.array([initial])
@@ -157,7 +157,7 @@ def stylize(network, content, styles, shape, iterations, save_dir = None, conten
         image_float = tf.Variable(initial)
         image = tf.image.convert_image_dtype(image_float,dtype=tf.uint8, saturate=True)
 
-        with tf.variable_scope("classifier/classifier", reuse=True):
+        with tf.variable_scope("classifier", reuse=True):
             vgg_o = vgg19.Vgg19(vgg19_npy_path='vgg19.npy')
             vgg_o.build(image_float, None)
             net = vgg_o.net()
@@ -264,9 +264,15 @@ def stylize(network, content, styles, shape, iterations, save_dir = None, conten
                 # print(best)
                 best_float32 = image_float.eval()
                 # print(best_float32)
+                best_str, = sess.run([tf.image.encode_png(best[0], name="input_pngs")])
+
+                # yield (
+                #     (None if last_step else i),
+                #     best.reshape(shape[1:])
+                # )
                 yield (
                     (None if last_step else i),
-                    best.reshape(shape[1:]) ##TODO: change back to best?
+                    best_str
                 )
 
 
@@ -297,8 +303,8 @@ def _precompute_image_features(img, layers, shape, save_dir):
     # an effect on the training speed later since the gram matrix size is not related to the size of the image.
     with g.as_default(), g.device('/cpu:0'), tf.Session(config=tf.ConfigProto(device_count = {'GPU': 0})) as sess:
 
-        with tf.name_scope("classifier/classifier"):
-            with tf.variable_scope("classifier/classifier", reuse=False):  # TODO: delete to classifier later. This is a temporary fix.
+        with tf.name_scope("classifier"):
+            with tf.variable_scope("classifier", reuse=False):
                 image = tf.placeholder(tf.uint8, shape=shape)
                 image_float = tf.image.convert_image_dtype(image,dtype=tf.float32)
                 vgg = vgg19.Vgg19(vgg19_npy_path='vgg19.npy')

@@ -37,7 +37,7 @@ def main(a):
     if not os.path.exists(a.output_dir):
         os.makedirs(a.output_dir)
 
-    if a.mode == "test":
+    if a.mode == "test" or a.mode == "save":
         if a.checkpoint is None:
             raise Exception("checkpoint required for test mode")
 
@@ -111,7 +111,7 @@ def main(a):
     sv = tf.train.Supervisor(logdir=logdir, save_summaries_secs=0, saver=None)
     tf_config = tf.ConfigProto()
     tf_config.gpu_options.per_process_gpu_memory_fraction = 0.45
-    with sv.managed_session(tf_config) as sess:
+    with sv.managed_session(config=tf_config) as sess:
         print("parameter_count =", sess.run(parameter_count))
 
         if a.checkpoint is not None:
@@ -119,7 +119,9 @@ def main(a):
             checkpoint = tf.train.latest_checkpoint(a.checkpoint)
             saver.restore(sess, checkpoint)
 
-        if a.mode == "test":
+        if a.mode == "save":
+            model.save_npy(sess, npy_path = os.path.join(a.checkpoint,"vgg19_save.npy"))
+        elif a.mode == "test":
             # testing
             # run a single epoch over all input data
             for step in range(examples.steps_per_epoch):
@@ -195,7 +197,7 @@ def main(a):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_dir", required=True, help="path to folder containing images")
-    parser.add_argument("--mode", required=True, choices=["train", "test"])
+    parser.add_argument("--mode", required=True, choices=["train", "test", "save"])
     parser.add_argument("--output_dir", required=True, help="where to put output files")
     parser.add_argument("--seed", type=int)
     parser.add_argument("--checkpoint", default=None,

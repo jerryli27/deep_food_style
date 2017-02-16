@@ -44,8 +44,8 @@ class Vgg19:
             red - VGG_MEAN[2],
         ])
         # assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
-        hw = bgr.get_shape().as_list()[1]
-        assert hw == bgr.get_shape().as_list()[2]
+        height = bgr.get_shape().as_list()[1]
+        width = bgr.get_shape().as_list()[2]
         if trainable_layer == "conv1_1":
             self.trainable = True
         self.conv1_1 = self.conv_layer(bgr, 3, 64, "conv1_1")
@@ -102,7 +102,7 @@ class Vgg19:
 
         if output_classes is not None:
             self.trainable = True
-            self.fc6 = self.fc_layer(self.pool5, ((hw / (2 ** 5)) ** 2) * 512, 4096, "fc6")  # 25088 = ((224 / (2 ** 5)) ** 2) * 512
+            self.fc6 = self.fc_layer(self.pool5, ((height / (2 ** 5)) * (width / (2 ** 5))) * 512, 4096, "fc6")  # 25088 = ((224 / (2 ** 5)) ** 2) * 512
             self.relu6 = tf.nn.relu(self.fc6)
             if train_mode is not None:
                 self.relu6 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu6, 0.5), lambda: self.relu6)
@@ -270,7 +270,8 @@ def create_model(inputs, targets, config):
 
 
     ema = tf.train.ExponentialMovingAverage(decay=0.99)
-    update_losses = ema.apply([loss,accuracy,])
+    # update_losses = ema.apply([loss,accuracy,]) #TODO: temporary delete.
+    update_losses = ema.apply([loss,])
 
     global_step = tf.contrib.framework.get_or_create_global_step()
     incr_global_step = tf.assign(global_step, global_step+1)
@@ -279,5 +280,5 @@ def create_model(inputs, targets, config):
         loss=ema.average(loss),
         outputs=predict,
         train=tf.group(update_losses, incr_global_step, classifier_train),
-        accuracy=ema.average(accuracy)
+        accuracy=accuracy # accuracy=ema.average(accuracy) TODO: temporary
     )
