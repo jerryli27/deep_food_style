@@ -18,7 +18,7 @@ from typing import Union, Tuple, List, Iterable
 
 import neural_doodle_util # TODO: delete
 import neural_util # TODO: delete
-import vgg19_mat
+import vgg
 from general_util import get_np_array_num_elements
 from mrf_util import mrf_loss # TODO: delete
 
@@ -130,9 +130,10 @@ def stylize(network, content, styles, shape, iterations, save_dir = None, conten
         content_image_float = tf.image.convert_image_dtype(content_image, dtype=tf.float32)
 
         with tf.variable_scope("classifier", reuse=False):
-            vgg_c = vgg19_mat.Vgg19(vgg19_npy_path='imagenet-vgg-verydeep-19.mat')
-            vgg_c.build(content_image_float, None)
-            net_c = vgg_c.net()
+            # vgg_c = vgg19_mat.Vgg19(vgg19_npy_path='imagenet-vgg-verydeep-19.mat')
+            # vgg_c.build(content_image_float, None)
+            # net_c = vgg_c.net()
+            net_c = vgg.net('imagenet-vgg-verydeep-19.mat',content_image_float)
         content_features[CONTENT_LAYER] = net_c[CONTENT_LAYER]
 
         if content is not None:
@@ -158,9 +159,10 @@ def stylize(network, content, styles, shape, iterations, save_dir = None, conten
         image = tf.image.convert_image_dtype(image_float,dtype=tf.uint8, saturate=True)
 
         with tf.variable_scope("classifier", reuse=True):
-            vgg_o = vgg19_mat.Vgg19(vgg19_npy_path='imagenet-vgg-verydeep-19.mat')
-            vgg_o.build(image_float, None)
-            net_o = vgg_o.net()
+            # vgg_o = vgg19_mat.Vgg19(vgg19_npy_path='imagenet-vgg-verydeep-19.mat')
+            # vgg_o.build(image_float, None)
+            # net_o = vgg_o.net()
+            net_o = vgg.net('imagenet-vgg-verydeep-19.mat',image_float)
 
         # content loss
         _, height, width, number = map(lambda i: i.value, content_features[CONTENT_LAYER].get_shape())
@@ -307,9 +309,10 @@ def _precompute_image_features(img, layers, shape, save_dir):
             with tf.variable_scope("classifier", reuse=False):
                 image = tf.placeholder(tf.uint8, shape=shape)
                 image_float = tf.image.convert_image_dtype(image,dtype=tf.float32)
-                vgg = vgg19_mat.Vgg19(vgg19_npy_path='imagenet-vgg-verydeep-19.mat')
-                vgg.build(image_float, None)
-                net = vgg.net()
+                # vgg = vgg19_mat.Vgg19(vgg19_npy_path='imagenet-vgg-verydeep-19.mat')
+                # vgg.build(image_float, None)
+                # net = vgg.net()
+                net = vgg.net('imagenet-vgg-verydeep-19.mat', image_float)
                 style_pre = np.array([img])
                 style_pre = style_pre.astype(np.uint8)
 
